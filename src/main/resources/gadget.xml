@@ -1,26 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Module>
-	<ModulePrefs title="__MSG_gadget.title__" directory_title="__MSG_gadget.title__" description="__MSG_gadget.description__" author="AM">
+	<ModulePrefs title="__MSG_gadget.title__" directory_title="__MSG_gadget.title__"
+		description="__MSG_gadget.description__" author="AM">
 		<Optional feature="gadget-directory">
 			<Param name="categories">
 				JIRA
 			</Param>
 		</Optional>
-		<Require feature="setprefs"/>
-		<Require feature="dynamic-height"/>
-		<Require feature="views"/>
-		<Require feature="oauthpopup"/>
+		<Require feature="setprefs" />
+		<Require feature="dynamic-height" />
+		<Require feature="views" />
+		<Require feature="oauthpopup" />
 		#oauth
 		#supportedLocales("gadget.common,gadget,i18n")
 	</ModulePrefs>
-	<UserPref name="setting1" datatype="hidden" default_value=""/>
-	<UserPref name="setting2" datatype="hidden" default_value=""/>
-	<UserPref name="isConfigured" datatype="hidden" default_value="false"/>
-	<UserPref name="refresh" datatype="hiden" default_value="false"/>
+	<UserPref name="setting1" datatype="hidden" default_value="" />
+	<UserPref name="setting2" datatype="hidden" default_value="" />
+	<UserPref name="isConfigured" datatype="hidden" default_value="false" />
+	<UserPref name="refresh" datatype="hiden" default_value="false" />
 	<Content type="html" view="profile,canvas,home"><![CDATA[
 		#requireResource("com.atlassian.jira.gadgets:g-filter-results")
 		<script type="text/javascript">
-			var contextPath = "__ATLASSIAN_BASE_URL__";
+			var contextPath = "http://192.168.0.109:8085";
 		</script>
 		#requireResource("atlassian-plugin.key:${atlassian.plugin.key}")
 		#includeResources()
@@ -28,12 +29,17 @@
 		<script type="text/javascript">
 			(function () {
                 var gadget = AJS.Gadget({
-                    baseUrl: "http://localhost:8085",
-                    useOauth: "/rest/gadget/1.0/currentUser",
+                    baseUrl: "http://192.168.0.109:8085",
+                    //useOauth: "/rest/gadget/1.0/currentUser",
                     view: {
+                    	enableReload: true,
+                    	onResizeReload: true,
+                    	onResizeAdjustHeight: false,
                         template: function(args) {
                             var gadget = this;
 
+							console.log("PROJECTS: " + JSON.stringify(args.projectData));
+							
                             var projectList = AJS.$("<ul/>");
 
                             AJS.$(args.projectData).each(function() {
@@ -50,13 +56,13 @@
 
                             gadget.getView().html(projectList);
                             
-                            console.log("PROJECTS: " + JSON.stringify(args.projectData));
                         },
                         args: [{
                             key: "projectData",
                             ajaxOptions: function() {
                                 return {
-                                    url: "/rest/api/latest/deploy/environment/2162689/results"
+                                    url: "/rest/api/latest/deploy/environment/819201/results?os_username=admin&os_password=admin"
+                                    // url: "/rest/api/latest/deploy/environment/819201/results?os_authType=cookie"
                                 };
                             }
                         }]
@@ -64,5 +70,33 @@
                 });
             })();
 		</script>
+		
+		<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+	    <script type="text/javascript">
+	      google.charts.load('current', {'packages':['corechart']});
+	      google.charts.setOnLoadCallback(drawChart);
+	
+	      function drawChart() {
+	        var data = google.visualization.arrayToDataTable([
+	          ['Year', 'Sales', 'Expenses'],
+	          ['2004',  1000,      400],
+	          ['2005',  1170,      460],
+	          ['2006',  660,       1120],
+	          ['2007',  1030,      540]
+	        ]);
+	
+	        var options = {
+	          title: 'Company Performance',
+	          curveType: 'function',
+	          legend: { position: 'bottom' }
+	        };
+	
+	        var chart = new google.visualization.LineChart(document.getElementById('curve_chart'));
+	
+	        chart.draw(data, options);
+	      }
+	    </script>
+	    
+	    <div id="curve_chart" style="width: 900px; height: 500px"></div>
 	]]></Content>
 </Module>
