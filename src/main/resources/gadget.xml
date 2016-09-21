@@ -17,52 +17,128 @@
 	<UserPref name="setting1" datatype="hidden" default_value="" />
 	<UserPref name="setting2" datatype="hidden" default_value="" />
 	<UserPref name="isConfigured" datatype="hidden" default_value="false" />
-	<UserPref name="refresh" datatype="hiden" default_value="false" />
+	<UserPref name="refresh" datatype="hidden" default_value="false" />
 	<Content type="html" view="profile,canvas,home"><![CDATA[
 		#requireResource("com.atlassian.jira.gadgets:g-filter-results")
 		<script type="text/javascript">
-			var contextPath = "http://192.168.0.109:8085";
+			var contextPath = "http://10.78.38.83:8085";
 		</script>
 		#requireResource("atlassian-plugin.key:${atlassian.plugin.key}")
 		#includeResources()
 	
+		<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 		<script type="text/javascript">
 			(function () {
                 var gadget = AJS.Gadget({
-                    baseUrl: "http://192.168.0.109:8085",
+                    baseUrl: "http://10.78.38.83:8085",
                     //useOauth: "/rest/gadget/1.0/currentUser",
                     view: {
                     	enableReload: true,
                     	onResizeReload: true,
                     	onResizeAdjustHeight: false,
                         template: function(args) {
-                            var gadget = this;
-
-							console.log("PROJECTS: " + JSON.stringify(args.projectData));
+                        	var gadget = this;
+							var dataArray = [];
+							var dataMap = {};
+							var allDataMap = {};
+							var header = ['Date'];
 							
-                            var projectList = AJS.$("<ul/>");
+							gadget.getView().html(AJS.$("<ul/>").attr("id", "line_chart"));
+							
+							var index = 0;
+							AJS.$(args.projectData).each(function() {
+								var numberOfEnvironments = AJS.$(this.environments).length;
+								AJS.$(this.environments).each(function() {
+									header.push(this.name);
 
-                            AJS.$(args.projectData).each(function() {
-                                projectList.append(
-                                    AJS.$("<li/>").append(
-                                        AJS.$("<a/>").attr({
-                                            target: "_parent",
-                                            title: gadgets.util.escapeString(this.key),
-                                            href: "__ATLASSIAN_BASE_URL__" + "/browse/" + this.key
-                                        }).text(this.name)        
-                                    )
-                                );
-                            });
+									AJS.$.ajax({
+		  							  url: "/rest/api/latest/deploy/environment/" + this.id + "/results?os_username=admin&os_password=happiest@123",
+									  type: "GET",
+									  dataType: "json",
+									  async: false,
+									  success: function(environmentData){
+									  	index++;
+									    
+									    AJS.$(environmentData).each(function() {
+											AJS.$(this.results).each(function() {
+												var date = new Date(this.finishedDate);
+												var dateString = date.toDateString();
+			                            		if(dateString in dataMap) {
+													dataMap[dateString][0] += 1;                            			
+			                            			if(this.deploymentState.toUpperCase() == 'SUCCESS') {
+			                            				dataMap[dateString][1] += 1;
+			                            			}
+			                            		} else {
+			                            			dataMap[dateString] = [];
+			                            			dataMap[dateString][0] = 1;
+			                            			if(this.deploymentState.toUpperCase() == 'SUCCESS') {
+			                            				dataMap[dateString][1] = 1;
+			                            			} else {
+			                            				dataMap[dateString][1] = 0;
+			                            			}	
+			                            		}
+			                            		
+			                            	});
+									
+											var maxResults = 30;
+											for(var key in dataMap) {
+												if(maxResults-- == 0) {
+													break;
+												}
+												percentageSuccess = (dataMap[key][1]/dataMap[key][0]) * 100;
+												
+												if(!(key in allDataMap)) {
+													allDataMap[key] = [];
+												}
+												allDataMap[key][index - 1] = percentageSuccess;												
+											}
+											
+											if(index == numberOfEnvironments) {
+												for(var key in allDataMap) {
+													for(var i = 0; i < numberOfEnvironments; i++) {
+														if(allDataMap[key][i] == null) {
+															allDataMap[key][i] = 0;
+														}
+													}
+												}
+												
+												generateDataArray();
+												drawChart();
+											}
+										});
+									  }
+									});
+								});
+							});
 
-                            gadget.getView().html(projectList);
-                            
+							google.charts.load('current', {'packages':['corechart']});
+							google.charts.setOnLoadCallback(drawChart);
+							
+							function generateDataArray() {
+								for(var key in allDataMap) {
+									var tempArray = [key];
+									dataArray.unshift(tempArray.concat(allDataMap[key]));
+								}
+								dataArray.unshift(header);
+							}
+								
+							function drawChart() {
+							  var data = google.visualization.arrayToDataTable(dataArray);
+							
+							  var options = {
+							    title: 'Successful Deployments (%)',
+							    legend: { position: 'bottom' }
+							  };
+							
+							  var chart = new google.visualization.LineChart(document.getElementById('line_chart'));
+							  chart.draw(data, options);
+							}
                         },
                         args: [{
                             key: "projectData",
                             ajaxOptions: function() {
                                 return {
-                                    url: "/rest/api/latest/deploy/environment/819201/results?os_username=admin&os_password=admin"
-                                    // url: "/rest/api/latest/deploy/environment/819201/results?os_authType=cookie"
+                                    url: "/rest/api/latest/deploy/project/all?os_username=admin&os_password=happiest@123"
                                 };
                             }
                         }]
@@ -70,33 +146,5 @@
                 });
             })();
 		</script>
-		
-		<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-	    <script type="text/javascript">
-	      google.charts.load('current', {'packages':['corechart']});
-	      google.charts.setOnLoadCallback(drawChart);
-	
-	      function drawChart() {
-	        var data = google.visualization.arrayToDataTable([
-	          ['Year', 'Sales', 'Expenses'],
-	          ['2004',  1000,      400],
-	          ['2005',  1170,      460],
-	          ['2006',  660,       1120],
-	          ['2007',  1030,      540]
-	        ]);
-	
-	        var options = {
-	          title: 'Company Performance',
-	          curveType: 'function',
-	          legend: { position: 'bottom' }
-	        };
-	
-	        var chart = new google.visualization.LineChart(document.getElementById('curve_chart'));
-	
-	        chart.draw(data, options);
-	      }
-	    </script>
-	    
-	    <div id="curve_chart" style="width: 900px; height: 500px"></div>
 	]]></Content>
 </Module>
